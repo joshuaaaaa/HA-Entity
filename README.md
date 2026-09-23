@@ -7,7 +7,8 @@ Místo sportovních statistik ale zobrazuje **vaše entity**.
 
 ## Co karta umí
 
-- **Nastavitelný počet řádků**: v editoru stačí změnit „Počet řádků“. Řádky jdou přesouvat nahoru a dolů i mazat.
+- **Nastavitelný počet řádků**: v editoru stačí změnit „Počet řádků“.
+- **Změna pořadí řádků**: přetáhněte řádek za úchyt ⠿, nebo použijte šipky ▲▼ v záhlaví řádku (fungují i na mobilu). Pořadové číslo se přepočítá samo. Řádek jde i odebrat.
 - **Vlastní název řádku** (místo „Žilina“ napíšete třeba „Obývák“).
 - **Ikona nebo vlastní obrázek**: ikona `mdi:`, URL (`/local/logo.png`) nebo tlačítko **Nahrát obrázek…**. Totéž platí pro logo v nadpisu.
   - Obrázek se nahraje do Home Assistantu (`/api/image/upload`). Když to nejde, uloží se zmenšený přímo do konfigurace karty.

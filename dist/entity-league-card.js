@@ -6,7 +6,7 @@
  *   type: custom:entity-league-card
  */
 
-const CARD_VERSION = "1.0.1";
+const CARD_VERSION = "1.1.0";
 
 const COLUMN_ORDER = ["temperature", "humidity", "light", "window", "motion", "flood", "switch"];
 
@@ -460,15 +460,31 @@ class EntityLeagueCardEditor extends HTMLElement {
     return el;
   }
 
-  _section(id, title, content) {
+  _section(id, title, content, before = [], after = []) {
     const d = document.createElement("details");
     d.className = "section";
     d.open = this._open.has(id);
     d.addEventListener("toggle", () => (d.open ? this._open.add(id) : this._open.delete(id)));
     const s = document.createElement("summary");
-    s.textContent = title;
+    const t = document.createElement("span");
+    t.className = "sum-title";
+    t.textContent = title;
+    s.append(...before, t, ...after);
     d.append(s, content);
     return d;
+  }
+
+  /** Přesune řádek a zachová, které řádky jsou v editoru rozbalené. */
+  _moveRow(from, to) {
+    const rows = this._config.rows || [];
+    if (from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return;
+    const openRows = rows.map((_, i) => this._open.has(`row-${i}`));
+    const [r] = rows.splice(from, 1);
+    rows.splice(to, 0, r);
+    const [o] = openRows.splice(from, 1);
+    openRows.splice(to, 0, o);
+    openRows.forEach((open, i) => (open ? this._open.add(`row-${i}`) : this._open.delete(`row-${i}`)));
+    this._commit(true);
   }
 
   _box(...children) {
@@ -767,22 +783,85 @@ class EntityLeagueCardEditor extends HTMLElement {
         b.addEventListener("click", fn);
         actions.append(b);
       };
-      const move = (d) => {
-        const [r] = c.rows.splice(i, 1);
-        c.rows.splice(i + d, 0, r);
-        this._open.delete(`row-${i}`);
-        this._open.add(`row-${i + d}`);
-        this._commit(true);
-      };
-      mk("▲ Nahoru", () => move(-1), i === 0);
-      mk("▼ Dolů", () => move(1), i === c.rows.length - 1);
+      mk("▲ Nahoru", () => this._moveRow(i, i - 1), i === 0);
+      mk("▼ Dolů", () => this._moveRow(i, i + 1), i === c.rows.length - 1);
       mk("Odebrat řádek", () => {
+        const openRows = c.rows.map((_, j) => this._open.has(`row-${j}`));
         c.rows.splice(i, 1);
+        openRows.splice(i, 1);
+        this._open.delete(`row-${c.rows.length}`);
+        openRows.forEach((open, j) => (open ? this._open.add(`row-${j}`) : this._open.delete(`row-${j}`)));
         this._commit(true);
       }, false, "secondary");
       inner.append(actions);
 
-      box.append(this._section(`row-${i}`, `${i + 1}. ${row.name || "(bez názvu)"}`, inner));
+      // Úchyt pro přetažení a šipky přímo v záhlaví řádku
+      const handle = document.createElement("span");
+      handle.className = "handle";
+      handle.textContent = "⠿";
+      handle.title = "Přetáhněte pro změnu pořadí";
+      handle.draggable = true;
+
+      const arrow = (label, title, to, disabled) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "icon-btn";
+        b.textContent = label;
+        b.title = title;
+        b.disabled = disabled;
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          this._moveRow(i, to);
+        });
+        return b;
+      };
+      const arrows = document.createElement("span");
+      arrows.className = "row-arrows";
+      arrows.append(
+        arrow("▲", "Posunout nahoru", i - 1, i === 0),
+        arrow("▼", "Posunout dolů", i + 1, i === c.rows.length - 1)
+      );
+
+      const section = this._section(`row-${i}`, `${i + 1}. ${row.name || "(bez názvu)"}`, inner, [handle], [arrows]);
+      section.classList.add("row-item");
+      section.dataset.index = i;
+
+      handle.addEventListener("dragstart", (ev) => {
+        this._dragFrom = i;
+        ev.dataTransfer.effectAllowed = "move";
+        ev.dataTransfer.setData("text/plain", String(i));
+        ev.dataTransfer.setDragImage(section, 20, 20);
+        section.classList.add("dragging");
+      });
+      handle.addEventListener("dragend", () => {
+        this._dragFrom = null;
+        section.classList.remove("dragging");
+        box.querySelectorAll(".drop-before, .drop-after").forEach((el) => el.classList.remove("drop-before", "drop-after"));
+      });
+      section.addEventListener("dragover", (ev) => {
+        if (this._dragFrom == null) return;
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = "move";
+        const rect = section.getBoundingClientRect();
+        const after = ev.clientY > rect.top + rect.height / 2;
+        section.classList.toggle("drop-after", after);
+        section.classList.toggle("drop-before", !after);
+      });
+      section.addEventListener("dragleave", () => section.classList.remove("drop-before", "drop-after"));
+      section.addEventListener("drop", (ev) => {
+        if (this._dragFrom == null) return;
+        ev.preventDefault();
+        const after = section.classList.contains("drop-after");
+        section.classList.remove("drop-before", "drop-after");
+        const from = this._dragFrom;
+        this._dragFrom = null;
+        let to = i + (after ? 1 : 0);
+        if (from < to) to -= 1;
+        this._moveRow(from, to);
+      });
+
+      box.append(section);
     });
 
     const add = document.createElement("button");
@@ -822,7 +901,23 @@ class EntityLeagueCardEditor extends HTMLElement {
       details.section { border: 1px solid var(--divider-color); border-radius: 8px; }
       details.section > summary {
         cursor: pointer; padding: 10px 12px; font-weight: 500; user-select: none;
+        display: flex; align-items: center; gap: 8px;
       }
+      details.section > summary::before { content: "▸"; font-size: 12px; color: var(--secondary-text-color); transition: transform .15s; }
+      details.section[open] > summary::before { transform: rotate(90deg); }
+      details.section > summary::-webkit-details-marker { display: none; }
+      .sum-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .handle { cursor: grab; font-size: 18px; line-height: 1; color: var(--secondary-text-color); padding: 0 2px; touch-action: none; }
+      .handle:active { cursor: grabbing; }
+      .row-arrows { display: inline-flex; gap: 4px; }
+      button.icon-btn {
+        padding: 2px 8px; font-size: 12px; line-height: 18px; background: transparent;
+        color: var(--primary-color); border-color: var(--divider-color);
+      }
+      details.row-item { transition: box-shadow .1s; }
+      details.row-item.dragging { opacity: .4; }
+      details.row-item.drop-before { box-shadow: 0 -3px 0 0 var(--primary-color); }
+      details.row-item.drop-after { box-shadow: 0 3px 0 0 var(--primary-color); }
       details.section[open] > summary { border-bottom: 1px solid var(--divider-color); }
       .box { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; }
       .box .box { padding: 10px; }
