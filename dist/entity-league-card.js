@@ -6,7 +6,7 @@
  *   type: custom:entity-league-card
  */
 
-const CARD_VERSION = "1.1.0";
+const CARD_VERSION = "1.1.1";
 
 const COLUMN_ORDER = ["temperature", "humidity", "light", "window", "motion", "flood", "switch"];
 
@@ -445,6 +445,7 @@ class EntityLeagueCardEditor extends HTMLElement {
     el.selector = selector;
     el.label = label;
     el.value = value;
+    el.required = false; // jinak HA skryje tlačítko pro smazání hodnoty
     el.addEventListener("value-changed", (ev) => {
       ev.stopPropagation();
       onChange(ev.detail.value);
@@ -766,9 +767,25 @@ class EntityLeagueCardEditor extends HTMLElement {
       ents.className = "entities";
       for (const key of COLUMN_ORDER) {
         const def = COLUMN_TYPES[key];
-        ents.append(
-          this._sel(def.label, { entity: { filter: def.filter } }, row[key] ?? "", (v) => this._set(row, key, v || null))
-        );
+        const line = document.createElement("div");
+        line.className = "entity-line";
+        const picker = this._sel(def.label, { entity: { filter: def.filter } }, row[key] ?? "", (v) => {
+          this._set(row, key, v || null);
+          clear.disabled = !v;
+        });
+        const clear = document.createElement("button");
+        clear.type = "button";
+        clear.className = "icon-btn clear";
+        clear.textContent = "✕";
+        clear.title = "Zrušit výběr entity";
+        clear.disabled = !row[key];
+        clear.addEventListener("click", () => {
+          picker.value = "";
+          clear.disabled = true;
+          this._set(row, key, null);
+        });
+        line.append(picker, clear);
+        ents.append(line);
       }
       inner.append(ents);
 
@@ -923,6 +940,9 @@ class EntityLeagueCardEditor extends HTMLElement {
       .box .box { padding: 10px; }
       .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center; }
       .entities { display: flex; flex-direction: column; gap: 8px; }
+      .entity-line { display: flex; align-items: center; gap: 8px; }
+      .entity-line ha-selector { flex: 1; min-width: 0; }
+      button.icon-btn.clear { align-self: center; padding: 6px 10px; }
       .note { margin: 0; font-size: 12px; color: var(--secondary-text-color); }
       .image-field { display: flex; gap: 12px; align-items: flex-start; }
       .image-field .preview {
