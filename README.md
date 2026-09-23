@@ -30,7 +30,7 @@ Místo sportovních statistik ale zobrazuje **vaše entity**.
 - **Více oken a dveří**: v sekci *Sloupce entit* nastavíte „Počet sloupců oken“ (výchozí 1) a „Počet sloupců dveří“ (výchozí 0). Sloupce se pak jmenují Okno 1, Okno 2 … / Dveře 1 …
 - U on/off sloupců si vyberete zobrazení **text / ikona / ikona + text**, **vlastní ikonu** pro zapnuto i vypnuto (např. jinou žárovku) a **barvu** pro zapnuto i vypnuto. Když nic nevyberete, zůstanou výchozí ikony a barvy.
 - **Skupiny a legenda**: barva čtverečku s pořadím a popisky pod tabulkou (jako „Playoffs“ a „Qualification Playoffs“).
-- Klik na buňku otevře detail entity. U světla a spínače ji rovnou přepne.
+- **Akce po kliknutí** (nastavuje se u každého sloupce): u světla a spínače je výchozí **zapnout / vypnout**. Můžete ji změnit na *otevřít detail* nebo *nic*, pak je ovládání vypnuté. Ostatní sloupce otevírají detail entity, nebo nic.
 
 ## Instalace
 
@@ -75,6 +75,7 @@ columns:
     color_off: "#43a047"  # barva zavřeno
   light:
     display: icon
+    tap_action: toggle      # toggle | more-info | none
     icon_on: mdi:ceiling-light
     icon_off: mdi:ceiling-light-outline
 rows:

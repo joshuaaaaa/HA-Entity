@@ -6,7 +6,7 @@
  *   type: custom:entity-league-card
  */
 
-const CARD_VERSION = "1.2.0";
+const CARD_VERSION = "1.3.0";
 
 const COLUMN_TYPES = {
   temperature: {
@@ -130,6 +130,9 @@ function columnDef(config, key) {
   return { ...base, label: `${base.label} ${idx}`, header: `${base.header} ${idx}` };
 }
 
+const TOGGLE_DOMAINS = ["light", "switch", "input_boolean", "fan"];
+const tapAction = (col) => col.tap_action || (col.toggle ? "toggle" : "more-info");
+
 const colCfg = (config, key) => ({ ...columnDef(config, key), ...((config.columns || {})[key] || {}) });
 
 function renderPicture(image, icon, cls) {
@@ -210,7 +213,7 @@ class EntityLeagueCard extends HTMLElement {
     if (!entityId) return `<td class="val"></td>`;
     const col = colCfg(this._config, key);
     const st = this._hass?.states?.[entityId];
-    const cls = `val clickable${bold ? " bold" : ""}`;
+    const cls = `val${tapAction(col) !== "none" ? " clickable" : ""}${bold ? " bold" : ""}`;
     if (!st || UNAVAILABLE.includes(String(st.state).toLowerCase())) {
       return `<td class="${cls} na" data-entity="${esc(entityId)}" data-col="${key}">–</td>`;
     }
@@ -307,8 +310,9 @@ class EntityLeagueCard extends HTMLElement {
     const entityId = td.dataset.entity;
     const col = colCfg(this._config, td.dataset.col);
     const domain = entityId.split(".")[0];
-    const tap = col.tap_action || (col.toggle ? "toggle" : "more-info");
-    if (tap === "toggle" && ["light", "switch", "input_boolean", "fan"].includes(domain)) {
+    const tap = tapAction(col);
+    if (tap === "none") return;
+    if (tap === "toggle" && TOGGLE_DOMAINS.includes(domain)) {
       this._hass.callService("homeassistant", "toggle", { entity_id: entityId });
     } else if (tap !== "none") {
       this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
@@ -767,6 +771,24 @@ class EntityLeagueCardEditor extends HTMLElement {
         this._set(col, "show", v ? null : false);
       });
       inner.append(this._grid(bold, show));
+
+      const tapOptions = [
+        ...(def.toggle ? [{ value: "toggle", label: "Zapnout / vypnout (ovládání)" }] : []),
+        { value: "more-info", label: "Otevřít detail entity" },
+        { value: "none", label: "Nic (ovládání vypnuto)" },
+      ];
+      const tapDefault = tapAction(def);
+      const tap = this._sel(
+        "Akce po kliknutí na buňku",
+        { select: { mode: "dropdown", options: tapOptions } },
+        tapAction({ ...def, ...col }),
+        (v) => {
+          clean();
+          this._set(col, "tap_action", v === tapDefault ? null : v);
+        }
+      );
+      if (def.toggle) tap.helper = "Výchozí: zapnout / vypnout";
+      inner.append(tap);
 
       box.append(this._section(`col-${key}`, def.label, inner));
     }
