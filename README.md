@@ -19,14 +19,16 @@ Místo sportovních statistik ale zobrazuje **vaše entity**.
   | Teplota | `sensor`, `input_number` | `21.5°C` |
   | Vlhkost | `sensor`, `input_number` | `45 %` |
   | Osvětlení | `light`, `switch` | Zap / Vyp (kliknutím přepnete) |
-  | Okno | `binary_sensor`, `cover`, `input_boolean` | Otevřeno / Zavřeno |
+  | Okno 1, 2, 3 … | `binary_sensor`, `cover`, `input_boolean` | Otevřeno / Zavřeno |
+| Dveře 1, 2 … | `binary_sensor`, `cover`, `lock`, `input_boolean` | Otevřeno / Zavřeno |
   | Pohyb | `binary_sensor`, `input_boolean` | Pohyb / Klid |
   | Zaplavení | `binary_sensor`, `input_boolean` | Voda! / Sucho |
   | Spínač | `switch`, `input_boolean`, `binary_sensor` | Zap / Vyp (kliknutím přepnete) |
 
 - **Když entitu nevyberete, nic se nezobrazí.** Sloupec se ukáže, jen když ho aspoň jeden řádek používá. Prázdná buňka zůstane prázdná.
 - **Přejmenování**: záhlaví každého sloupce, texty stavů (např. „Zap“ → „Svítí“), jednotky, počet desetinných míst.
-- U on/off sloupců si vyberete zobrazení **text / ikona / ikona + text** a barvu aktivního stavu.
+- **Více oken a dveří**: v sekci *Sloupce entit* nastavíte „Počet sloupců oken“ (výchozí 1) a „Počet sloupců dveří“ (výchozí 0). Sloupce se pak jmenují Okno 1, Okno 2 … / Dveře 1 …
+- U on/off sloupců si vyberete zobrazení **text / ikona / ikona + text**, **vlastní ikonu** pro zapnuto i vypnuto (např. jinou žárovku) a **barvu** pro zapnuto i vypnuto. Když nic nevyberete, zůstanou výchozí ikony a barvy.
 - **Skupiny a legenda**: barva čtverečku s pořadím a popisky pod tabulkou (jako „Playoffs“ a „Qualification Playoffs“).
 - Klik na buňku otevře detail entity. U světla a spínače ji rovnou přepne.
 
@@ -50,6 +52,8 @@ type: custom:entity-league-card
 title: Můj dům
 icon: mdi:home            # nebo image: /local/logo.png
 name_header: Místnost     # výchozí "Název"
+window_count: 2           # sloupce window, window_2
+door_count: 1             # sloupec door
 position_header: "#"
 groups:
   - name: Přízemí
@@ -67,7 +71,12 @@ columns:
     display: both          # text | icon | both
   window:
     display: icon
-    color: "#fb8c00"
+    color: "#fb8c00"      # barva otevřeno
+    color_off: "#43a047"  # barva zavřeno
+  light:
+    display: icon
+    icon_on: mdi:ceiling-light
+    icon_off: mdi:ceiling-light-outline
 rows:
   - name: Obývák
     image: /local/ikony/obyvak.png
@@ -89,8 +98,9 @@ rows:
 |---|---|
 | `title`, `icon`, `image` | Nadpis a logo (obrázek má přednost před ikonou) |
 | `position_header`, `name_header` | Záhlaví sloupců pořadí a názvu |
+| `window_count`, `door_count` | Počet sloupců oken (výchozí 1) a dveří (výchozí 0) |
 | `show_position`, `show_legend` | `false` skryje pořadí nebo legendu |
 | `legend_all` | `true` ukáže v legendě i nepoužité skupiny |
 | `groups[]` | `name`, `color` |
-| `rows[]` | `name`, `icon`, `image`, `group` (index skupiny), `color` (vlastní barva pořadí) a entity `temperature`, `humidity`, `light`, `window`, `motion`, `flood`, `switch` |
-| `columns.<typ>` | `header`, `show`, `bold`, `unit`, `decimals`, `on_text`, `off_text`, `display`, `color`, `icon_on`, `icon_off`, `tap_action` (`more-info` / `toggle` / `none`) |
+| `rows[]` | `name`, `icon`, `image`, `group` (index skupiny), `color` (vlastní barva pořadí) a entity `temperature`, `humidity`, `light`, `window`, `window_2` …, `door`, `door_2` …, `motion`, `flood`, `switch` |
+| `columns.<typ>` | `header`, `show`, `bold`, `unit`, `decimals`, `on_text`, `off_text`, `display`, `color`, `color_off`, `icon_on`, `icon_off`, `tap_action` (`more-info` / `toggle` / `none`) |

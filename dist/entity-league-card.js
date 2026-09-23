@@ -6,9 +6,7 @@
  *   type: custom:entity-league-card
  */
 
-const CARD_VERSION = "1.1.1";
-
-const COLUMN_ORDER = ["temperature", "humidity", "light", "window", "motion", "flood", "switch"];
+const CARD_VERSION = "1.2.0";
 
 const COLUMN_TYPES = {
   temperature: {
@@ -49,6 +47,17 @@ const COLUMN_TYPES = {
     icon_off: "mdi:window-closed-variant",
     color: "#fb8c00",
     filter: [{ domain: "binary_sensor" }, { domain: "cover" }, { domain: "input_boolean" }],
+  },
+  door: {
+    label: "Dveře",
+    header: "Dveře",
+    kind: "binary",
+    on_text: "Otevřeno",
+    off_text: "Zavřeno",
+    icon_on: "mdi:door-open",
+    icon_off: "mdi:door-closed",
+    color: "#fb8c00",
+    filter: [{ domain: "binary_sensor" }, { domain: "cover" }, { domain: "lock" }, { domain: "input_boolean" }],
   },
   motion: {
     label: "Pohyb",
@@ -97,7 +106,31 @@ const DEFAULT_GROUPS = [
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-const colCfg = (config, key) => ({ ...COLUMN_TYPES[key], ...((config.columns || {})[key] || {}) });
+// Okna a dveře mohou mít více sloupců: window, window_2, window_3 … / door, door_2 …
+const MULTI_COLUMNS = { window: { count: "window_count", def: 1 }, door: { count: "door_count", def: 0 } };
+const MAX_MULTI = 8;
+
+function multiCount(config, base) {
+  const m = MULTI_COLUMNS[base];
+  const v = parseInt(config?.[m.count], 10);
+  return Math.max(0, Math.min(MAX_MULTI, Number.isNaN(v) ? m.def : v));
+}
+
+function columnKeys(config) {
+  const multi = (base) => Array.from({ length: multiCount(config, base) }, (_, i) => (i === 0 ? base : `${base}_${i + 1}`));
+  return ["temperature", "humidity", "light", ...multi("window"), ...multi("door"), "motion", "flood", "switch"];
+}
+
+function columnDef(config, key) {
+  const m = /^(window|door)(?:_(\d+))?$/.exec(key);
+  if (!m) return COLUMN_TYPES[key];
+  const base = COLUMN_TYPES[m[1]];
+  const idx = m[2] ? parseInt(m[2], 10) : 1;
+  if (idx === 1 && multiCount(config, m[1]) <= 1) return base;
+  return { ...base, label: `${base.label} ${idx}`, header: `${base.header} ${idx}` };
+}
+
+const colCfg = (config, key) => ({ ...columnDef(config, key), ...((config.columns || {})[key] || {}) });
 
 function renderPicture(image, icon, cls) {
   if (image) return `<img class="${cls}" src="${esc(image)}" alt="">`;
@@ -163,14 +196,14 @@ class EntityLeagueCard extends HTMLElement {
   _entityIds() {
     const ids = [];
     for (const row of this._config?.rows || []) {
-      for (const key of COLUMN_ORDER) if (row[key]) ids.push(row[key]);
+      for (const key of columnKeys(this._config)) if (row[key]) ids.push(row[key]);
     }
     return ids;
   }
 
   _visibleColumns() {
     const rows = this._config.rows || [];
-    return COLUMN_ORDER.filter((key) => colCfg(this._config, key).show !== false && rows.some((r) => r[key]));
+    return columnKeys(this._config).filter((key) => colCfg(this._config, key).show !== false && rows.some((r) => r[key]));
   }
 
   _cell(key, entityId, bold) {
@@ -195,7 +228,7 @@ class EntityLeagueCard extends HTMLElement {
 
     const on = ON_STATES.includes(String(st.state).toLowerCase());
     const display = col.display || "text";
-    const color = on ? col.color : "";
+    const color = on ? col.color : col.color_off;
     const style = color ? ` style="color:${esc(color)}"` : "";
     let inner = "";
     if (display === "icon" || display === "both") {
@@ -611,8 +644,16 @@ class EntityLeagueCardEditor extends HTMLElement {
       "Sloupec se zobrazí jen tehdy, když je aspoň v jednom řádku vybraná entita. Záhlaví i texty stavů můžete přejmenovat.";
     box.append(note);
 
-    for (const key of COLUMN_ORDER) {
-      const def = COLUMN_TYPES[key];
+    const count = (label, base) =>
+      this._sel(label, { number: { min: 0, max: MAX_MULTI, mode: "box" } }, multiCount(c, base), (v) => {
+        const n = Math.max(0, Math.min(MAX_MULTI, parseInt(v, 10) || 0));
+        this._set(c, MULTI_COLUMNS[base].count, n === MULTI_COLUMNS[base].def ? null : n, true);
+      });
+    const counts = this._grid(count("Počet sloupců oken", "window"), count("Počet sloupců dveří", "door"));
+    box.append(counts);
+
+    for (const key of columnKeys(c)) {
+      const def = columnDef(c, key);
       const col = (c.columns?.[key]) || {};
       const clean = () => {
         c.columns = c.columns || {};
@@ -660,18 +701,56 @@ class EntityLeagueCardEditor extends HTMLElement {
             this._set(col, "display", v === "text" ? null : v);
           }
         );
-        const color = document.createElement("label");
-        color.className = "color";
-        color.innerHTML = `<span>Barva aktivního stavu</span>`;
-        const ci = document.createElement("input");
-        ci.type = "color";
-        ci.value = col.color || def.color;
-        ci.addEventListener("change", () => {
-          clean();
-          this._set(col, "color", ci.value === def.color ? null : ci.value);
-        });
-        color.append(ci);
-        inner.append(this._grid(on, off), this._grid(display, color));
+        const colorField = (label, k, fallback) => {
+          const wrap = document.createElement("label");
+          wrap.className = "color";
+          const span = document.createElement("span");
+          span.textContent = label;
+          const ci = document.createElement("input");
+          ci.type = "color";
+          ci.value = col[k] || fallback;
+          const reset = document.createElement("button");
+          reset.type = "button";
+          reset.className = "icon-btn";
+          reset.textContent = "↺";
+          reset.title = "Výchozí barva";
+          reset.disabled = !col[k];
+          ci.addEventListener("change", () => {
+            clean();
+            reset.disabled = false;
+            this._set(col, k, ci.value);
+          });
+          reset.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            ci.value = fallback;
+            reset.disabled = true;
+            clean();
+            this._set(col, k, null);
+          });
+          wrap.append(span, ci, reset);
+          return wrap;
+        };
+        const iconSel = (label, k) => {
+          const el = this._sel(label, { icon: { placeholder: def[k] } }, col[k] ?? "", (v) => {
+            clean();
+            this._set(col, k, v || null);
+          });
+          el.helper = `Výchozí: ${def[k]}`;
+          return el;
+        };
+        const iconNote = document.createElement("p");
+        iconNote.className = "note";
+        iconNote.textContent = "Ikony a jejich barvy se ukážou při zobrazení „Ikona“ nebo „Ikona + text“. Barva platí i pro text.";
+        inner.append(
+          this._grid(on, off),
+          display,
+          iconNote,
+          this._grid(iconSel("Ikona – zapnuto / otevřeno", "icon_on"), iconSel("Ikona – vypnuto / zavřeno", "icon_off")),
+          this._grid(
+            colorField("Barva – zapnuto / otevřeno", "color", def.color),
+            colorField("Barva – vypnuto / zavřeno", "color_off", "#9e9e9e")
+          )
+        );
       }
 
       const bold = this._sel(
@@ -765,8 +844,8 @@ class EntityLeagueCardEditor extends HTMLElement {
 
       const ents = document.createElement("div");
       ents.className = "entities";
-      for (const key of COLUMN_ORDER) {
-        const def = COLUMN_TYPES[key];
+      for (const key of columnKeys(c)) {
+        const def = columnDef(c, key);
         const line = document.createElement("div");
         line.className = "entity-line";
         const picker = this._sel(def.label, { entity: { filter: def.filter } }, row[key] ?? "", (v) => {
@@ -964,7 +1043,8 @@ class EntityLeagueCardEditor extends HTMLElement {
       .group-line { display: flex; gap: 10px; align-items: center; }
       .group-line ha-selector { flex: 1; }
       input[type=color] { width: 40px; height: 32px; border: none; padding: 0; background: none; cursor: pointer; }
-      label.color { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+      label.color { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+      label.color span { flex: 1; }
       @media (max-width: 450px) { .grid { grid-template-columns: 1fr; } }
     `;
   }
