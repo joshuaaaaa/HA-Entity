@@ -6,7 +6,7 @@
  *   type: custom:entity-league-card
  */
 
-const CARD_VERSION = "1.0.0";
+const CARD_VERSION = "1.0.1";
 
 const COLUMN_ORDER = ["temperature", "humidity", "light", "window", "motion", "flood", "switch"];
 
@@ -17,7 +17,7 @@ const COLUMN_TYPES = {
     kind: "numeric",
     unit: "°C",
     decimals: 1,
-    filter: [{ domain: "sensor", device_class: "temperature" }, { domain: "input_number" }],
+    filter: [{ domain: "sensor" }, { domain: "input_number" }],
   },
   humidity: {
     label: "Vlhkost",
@@ -25,7 +25,7 @@ const COLUMN_TYPES = {
     kind: "numeric",
     unit: "%",
     decimals: 0,
-    filter: [{ domain: "sensor", device_class: "humidity" }, { domain: "input_number" }],
+    filter: [{ domain: "sensor" }, { domain: "input_number" }],
   },
   light: {
     label: "Osvětlení",
@@ -48,7 +48,7 @@ const COLUMN_TYPES = {
     icon_on: "mdi:window-open-variant",
     icon_off: "mdi:window-closed-variant",
     color: "#fb8c00",
-    filter: [{ domain: "binary_sensor", device_class: ["window", "door", "opening", "garage_door"] }],
+    filter: [{ domain: "binary_sensor" }, { domain: "cover" }, { domain: "input_boolean" }],
   },
   motion: {
     label: "Pohyb",
@@ -59,7 +59,7 @@ const COLUMN_TYPES = {
     icon_on: "mdi:motion-sensor",
     icon_off: "mdi:motion-sensor-off",
     color: "#1e88e5",
-    filter: [{ domain: "binary_sensor", device_class: ["motion", "occupancy", "presence"] }],
+    filter: [{ domain: "binary_sensor" }, { domain: "input_boolean" }],
   },
   flood: {
     label: "Zaplavení",
@@ -70,7 +70,7 @@ const COLUMN_TYPES = {
     icon_on: "mdi:water-alert",
     icon_off: "mdi:water-off-outline",
     color: "#e53935",
-    filter: [{ domain: "binary_sensor", device_class: "moisture" }],
+    filter: [{ domain: "binary_sensor" }, { domain: "input_boolean" }],
   },
   switch: {
     label: "Spínač / senzor on-off",

@@ -15,12 +15,12 @@ Místo sportovních statistik ale zobrazuje **vaše entity**.
 
   | Sloupec | Entity | Zobrazení (výchozí) |
   |---|---|---|
-  | Teplota | `sensor` (temperature), `input_number` | `21.5°C` |
-  | Vlhkost | `sensor` (humidity), `input_number` | `45 %` |
+  | Teplota | `sensor`, `input_number` | `21.5°C` |
+  | Vlhkost | `sensor`, `input_number` | `45 %` |
   | Osvětlení | `light`, `switch` | Zap / Vyp (kliknutím přepnete) |
-  | Okno | `binary_sensor` (window, door, opening, garage_door) | Otevřeno / Zavřeno |
-  | Pohyb | `binary_sensor` (motion, occupancy, presence) | Pohyb / Klid |
-  | Zaplavení | `binary_sensor` (moisture) | Voda! / Sucho |
+  | Okno | `binary_sensor`, `cover`, `input_boolean` | Otevřeno / Zavřeno |
+  | Pohyb | `binary_sensor`, `input_boolean` | Pohyb / Klid |
+  | Zaplavení | `binary_sensor`, `input_boolean` | Voda! / Sucho |
   | Spínač | `switch`, `input_boolean`, `binary_sensor` | Zap / Vyp (kliknutím přepnete) |
 
 - **Když entitu nevyberete, nic se nezobrazí.** Sloupec se ukáže, jen když ho aspoň jeden řádek používá. Prázdná buňka zůstane prázdná.
